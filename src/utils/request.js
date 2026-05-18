@@ -40,7 +40,11 @@ request.interceptors.response.use(
   },
   error => {
     // 统一处理 HTTP 状态码错误
-    if (error.response) {
+    const traceId = error.response ? error.response.headers['x-trace-id'] : '';
+    let errorMsg = '服务器开小差了';
+    if (error.response && error.response.data) {
+      errorMsg = error.response.data.msg || error.response.data['error-message'] || errorMsg;
+      alert(`${errorMsg}\n[问题追踪ID: ${traceId || '无'}]`);
       switch (error.response.status) {
         case 401: {
           // 401 未授权：说明 Token 没传、过期、或者造假
