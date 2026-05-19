@@ -73,6 +73,9 @@
           <div class="text-center text-sm text-gray-500">
             登录即代表同意 <a href="#" class="text-dy-red hover:underline">用户协议</a> 和 <a href="#" class="text-dy-red hover:underline">隐私政策</a>
           </div>
+          <div class="text-center text-sm text-gray-500">
+            <RouterLink to="/register" class="text-dy-red font-bold hover:underline">注册</RouterLink>
+          </div>
         </div>
       </div>
     </div>
