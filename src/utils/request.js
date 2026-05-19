@@ -27,9 +27,22 @@ request.interceptors.request.use(
 // 3. 响应拦截器 (拿到 Go 后端的数据后执行)
 request.interceptors.response.use(
   response => {
-    // 假设你的 Go 后端返回格式是 { code: 200, data: {...}, msg: "success" }
-    // 这里直接剥离外层，返回真实的业务数据
     const res = response.data
+    const headers = response.headers || {}
+    const newToken = headers['new-token'] || headers['New-Token']
+    if (newToken) {
+      // 1. 替换掉 LocalStorage 里的快过期老 Token
+      const userStore = useUserStore()
+      userStore.setToken(newToken)
+      localStorage.setItem('token', newToken)
+      const newExpiredAt = headers['new-expired-at'] || headers['New-Expired-At']
+      if (newExpiredAt) localStorage.setItem('expired_at', newExpiredAt)
+
+      // 步骤 B：内存生效！立刻更新当前 Axios 实例的默认 Header
+      // 【防翻车细节】：如果不写这行，用户接着点的下一个按钮，还是会带上旧的 Token 去请求
+      request.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
+      console.log('🔄 恭喜！Token 已在后台静默续签完毕！')
+    }
     if (res && Object.prototype.hasOwnProperty.call(res, 'code')) {
       if(res.code !== 200 && res.code !== 1){
         const errorMsg = res['error-message'] || res.msg || '服务器开小差了'
@@ -41,15 +54,18 @@ request.interceptors.response.use(
   },
   error => {
     // 统一处理 HTTP 状态码错误
-    const traceId = error.response ? error.response.headers['x-trace-id'] : '';
     let errorMsg = '服务器开小差了';
     if (error.response && error.response.data) {
-      errorMsg = error.response.data.msg || error.response.data['error-message'] || errorMsg;
-      alert(`${errorMsg}\n[问题追踪ID: ${traceId || '无'}]`);
-      switch (error.response.status) {
+      const res = error.response.data
+      const rawMsg = res['error-message'] || res.msg || errorMsg
+      errorMsg = typeof rawMsg === 'object' ? JSON.stringify(rawMsg) : rawMsg
+    }
+      const traceId = error.response ? error.response.headers['x-trace-id'] : ''
+      let statusCode = error.response?.status
+      switch (statusCode) {
         case 401: {
           // 401 未授权：说明 Token 没传、过期、或者造假
-          alert('登录已过期，请重新登录')
+          alert(`$登录已过期，请重新登录\n[问题追踪ID: ${traceId || '无'}]`)
           const userStore = useUserStore()
           userStore.clearToken() // 清除失效 Token
           router.push('/') // 踢回登录页
@@ -57,15 +73,14 @@ request.interceptors.response.use(
         }
         case 403: {
           // 403 被拒绝：说明 JWT 过了，但 Casbin 发现你没权限
-          alert('权限不足，禁止访问！')
+          alert(`权限不足，禁止访问！\n[问题追踪ID: ${traceId || '无'}]`)
           break
         }
         default:{
-          alert('网络错误，请稍后再试')
+          console.log(`${errorMsg}\n[问题追踪ID: ${traceId || '无'}]`)
         }
       }
-    }
-    return Promise.reject(error)
+    return Promise.reject(new Error(errorMsg))
   }
 )
 

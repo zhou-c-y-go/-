@@ -52,13 +52,25 @@
 
           <div class="space-y-6">
             <div class="bg-gray-100 rounded-2xl p-4">
-              <input type="text" placeholder="手机号" class="w-full bg-transparent text-lg focus:outline-none" v-model="phone"/>
+              <input
+                type="text"
+                placeholder="手机号/邮箱/用户名"
+                class="w-full bg-transparent text-lg focus:outline-none"
+                v-model="phone"/>
             </div>
             <div class="bg-gray-100 rounded-2xl p-4">
-              <input type="password" placeholder="密码" class="w-full bg-transparent text-lg focus:outline-none" v-model="password"/>
+              <input
+                type="password"
+                placeholder="密码"
+                class="w-full bg-transparent text-lg focus:outline-none"
+                v-model="password"/>
             </div>
           </div>
-
+          <div class="min-h-[20px]">
+            <p v-if="errorMsg" class="text-sm text-red-500 font-medium animate-pulse">
+              ⚠️ {{ errorMsg }}
+            </p>
+          </div>
           <button
             @click="handleLogin"
             :disabled="isLoginDisabled"
@@ -87,7 +99,7 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router'; // 引入路由
 import { useUserStore } from '../stores/user'; // 引入咱们的仓库
 import request from '../utils/request';
-
+const errorMsg = ref('')
 const phone = ref('');         // 用户输入的手机号
 const password = ref('');          // 用户输入的验证码
 const router = useRouter();
@@ -97,9 +109,9 @@ const userStore = useUserStore();
 const isLoginDisabled = computed(() => {
   return !phone.value || !password.value;
 });
-
 // 3. 登录逻辑处理
 const handleLogin = async () => {
+  errorMsg.value = ''
   if (isLoginDisabled.value) return;
   const payload = {
     // 注意：这里的字段名要和你 Go 后端 request.go 结构体里的 json 标签对齐
@@ -111,14 +123,11 @@ const handleLogin = async () => {
     const res = await request.post('/user/login', payload);
     // 假设 Go 返回的数据在 res.data.token 里
     const token = res.data.token;
-    // 1. 把 Token 存进 Pinia 和 localStorage
     userStore.setToken(token);
     console.log('登录成功，准备跳转！');
-    // 2. 跳转到首页 (记得在 router/index.js 里建一个路径为 '/home' 的路由)
-    router.push('/home');
+    router.push('/');
   } catch (error) {
-    console.error('登录失败:', error);
-    // 错误已经在 request.js 拦截器里 alert 过了，这里无需额外处理
+    errorMsg.value = error.message || '登录失败，请检查账号和密码'
   }
 };
 </script>
