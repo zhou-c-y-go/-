@@ -164,4 +164,8 @@ const handleLogout = () => {
   alert('已成功退出登录！')
   // 退出后不一定要跳走，留在首页即可，因为首页是对外公开的
 }
+
+const goToProfile = async () => {
+  await router.push('/center')
+}
 </script>
