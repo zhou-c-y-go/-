@@ -1,11 +1,10 @@
 import axios from 'axios'
 import { useUserStore } from '../stores/user'
 import router from '../router'
-
 // 1. 创建 Axios 实例
 const request = axios.create({
   // 这里写你 Go 后端的地址，注意修改端口号以匹配你的 Gin 启动端口
-  baseURL: 'http://localhost:8080/api/v1',
+  baseURL: 'http://localhost:8080/api/v1/user',
   timeout: 5000 // 请求超时时间：5秒
 })
 
@@ -13,10 +12,15 @@ const request = axios.create({
 request.interceptors.request.use(
   config => {
     const userStore = useUserStore()
-    // 如果本地有 Token，就按照 JWT 标准加上 Bearer 前缀带在请求头里
-    if (userStore.token) {
-      config.headers['Authorization'] = `Bearer ${userStore.token}`
+    const token = userStore.token || localStorage.getItem('token')
+    const validToken = String(token).trim()
+    if (validToken && validToken !== 'undefined' && validToken !== 'null' && validToken !== '') {
+      config.headers['Authorization'] = `Bearer ${validToken}`
+    }else {
+      console.warn('⚠️ 拦截器警告：当前请求未检测到有效 Token，Header 未注入 Authorization')
     }
+    const traceId = localStorage.getItem('current_trace_id') || crypto.randomUUID()
+    config.headers['X-Trace-Id'] = traceId
     return config
   },
   error => {
@@ -85,3 +89,20 @@ request.interceptors.response.use(
 )
 
 export default request
+export const publicRequest = axios.create({
+  baseURL: 'http://localhost:8080/api/v1/user',
+  timeout: 5000
+})
+
+// 刷脸通道只需要全链路追踪 TraceID，压根不需要去碰任何关于 Token 的逻辑！
+publicRequest.interceptors.request.use(config => {
+  const traceId = localStorage.getItem('current_trace_id') || crypto.randomUUID()
+  config.headers['X-Trace-Id'] = traceId
+  return config
+})
+
+// 响应拦截也只需要最基础的报错提示即可
+publicRequest.interceptors.response.use(
+  response => response.data,
+  error => Promise.reject(error)
+)

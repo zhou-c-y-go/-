@@ -98,7 +98,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router'; // 引入路由
 import { useUserStore } from '../stores/user'; // 引入咱们的仓库
-import request from '../utils/request';
+import publicRequest from '../utils/request';
 const errorMsg = ref('')
 const phone = ref('');         // 用户输入的手机号
 const password = ref('');          // 用户输入的验证码
@@ -120,12 +120,19 @@ const handleLogin = async () => {
   };
   try {
     // 真正的网络请求！
-    const res = await request.post('/user/login', payload);
-    // 假设 Go 返回的数据在 res.data.token 里
-    const token = res.data.token;
-    userStore.setToken(token);
-    console.log('登录成功，准备跳转！');
-    router.push('/');
+    const res = await publicRequest.post('/login', payload);
+
+    // ✅ 核心修复：直接从 res.data 中提取 Token 字符串！
+    const token = res.data;
+
+    if (token) {
+      userStore.setToken(token);
+      localStorage.setItem("token", token); // 妥妥地存入硬盘
+      console.log('🎉 登录成功，Token 已正确持久化，准备跳转！');
+      await router.push('/');
+    } else {
+      console.error('后端返回的 data 为空，未获取到 Token');
+    }
   } catch (error) {
     errorMsg.value = error.message || '登录失败，请检查账号和密码'
   }

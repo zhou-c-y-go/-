@@ -142,7 +142,7 @@ const handleRegister = async () => {
 
   try {
     // 请求打向路由：POST /api/v1/user/base/register
-    await request.post('/user/register', payload);
+    await request.post('/register', payload);
     // 如果剥离出来的业务状态码是 200（或者根据你后端的约定）
     alert('注册成功！正在为您跳转到登录页');
     router.push('/'); // 丝滑切回登录页

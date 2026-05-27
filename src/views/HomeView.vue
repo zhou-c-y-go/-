@@ -53,10 +53,16 @@
           </div>
           <hr class="border-gray-800"/>
           <div class="space-y-1 text-gray-400 text-sm">
-            <div class="px-4 py-2 hover:text-white cursor-pointer">👥 关注</div>
-            <div class="px-4 py-2 hover:text-white cursor-pointer">🤝 朋友</div>
-            <div class="px-4 py-2 hover:text-white cursor-pointer">👤 我的</div>
-          </div>
+          <div
+            v-for="subItem in subMenuItems"
+            :key="subItem.id"
+            @click="handleSubMenuClick(subItem.id)"
+            class="px-4 py-2 hover:text-white hover:bg-gray-800/30 rounded-lg cursor-pointer transition-all duration-150 flex items-center space-x-2 active:scale-[0.99]"
+          >
+          <span>{{ subItem.icon }}</span>
+          <span>{{ subItem.name }}</span>
+  </div>
+</div>
         </div>
         <div class="bg-[#2f3142] p-3 rounded-xl text-center space-y-2 text-xs">
           <p class="text-gray-300">客户端看视频更方便</p>
@@ -138,16 +144,31 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import {onMounted, ref} from "vue";
+import request from "@/utils/request.js";
 const router = useRouter()
 const isLoginIn = ref(false)
 const userAvatar = ref('https://api.dicebear.com/7.x/adventurer/svg?seed=Felix')
-onMounted(() => {
+onMounted(async () => {
   const token = localStorage.getItem('token')
   if (token) {
     isLoginIn.value = true
-    //TODO 如果你登录时把头像也存进了 localStorage，可以在这里取出来
-    // const savedAvatar = localStorage.getItem('avatar')
-    // if (savedAvatar) userAvatar.value = savedAvatar
+
+    // 💡 降维打击：告别过期的 localStorage 暂存，直接触发高性能缓存回源！
+    try {
+      const res = await request.get('/profile')
+      // 严格对齐我们设定的【只认 1 为成功】的绝对绿灯暗号！
+      if (res && res.code === 1 && res.data && res.data.avatar) {
+        userAvatar.value = res.data.avatar // 瞬间秒级同步最新的 MinIO 头像网络路径！
+        console.log('⚡ [Navbar] 身份验证通过，已成功捞取实时动态头像链路。')
+      }
+    } catch (error) {
+      console.error('❌ [Navbar] 拉取最新用户头像失败啦:', error)
+      // 如果报错，拦截器会自动弹窗，这里静默降级走默认头像即可，不影响核心体验
+    }
+  } else {
+    isLoginIn.value = false
+    // 没登录时，可以视情况强制重定向到登录页
+    // router.push('/login')
   }
 })
 const goToLogin = async () => {
@@ -167,5 +188,21 @@ const handleLogout = () => {
 
 const goToProfile = async () => {
   await router.push('/center')
+}
+
+const activeSubMenu = ref('')
+
+// 💡 将你截图里的静态内容统一收拢到这个数组里
+const subMenuItems = ref([
+  { id: 'following', name: '关注', icon: '👥' },
+  { id: 'friends',   name: '朋友', icon: '🤝' },
+  { id: 'center',    name: '我的', icon: '👤' }
+])
+
+// 💡 子菜单的点击调度中枢
+const handleSubMenuClick = (subId) => {
+  activeSubMenu.value = subId
+  console.log(`🔗 子功能区已成功切流至: [${subId}]`)
+  router.push(`/${subId}`)
 }
 </script>
